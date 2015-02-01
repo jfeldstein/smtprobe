@@ -1,0 +1,18 @@
+GIT
+  remote: https://github.com/jfeldstein/email_verifier.git
+  revision: f6c97ba7ac1d9f2b2e3e06c1c6a395f866589a9f
+  branch: remove-rails
+  specs:
+    email_verifier (0.0.7)
+      dnsruby (>= 1.5)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    dnsruby (1.57.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  email_verifier!
