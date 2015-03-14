@@ -1,72 +1,63 @@
 puts "Loading...\n\n"
 
-first_name = nil
-last_name  = nil
-middle_name = nil
-host = nil
-
-ARGV.each_with_index do |k, i|
-    v = ARGV[i+1]
-    case k
-    when '-f'
-        first_name  = v
-    when '-l'
-        last_name   = v
-    when '-m'
-        middle_name = v
-    when '-h'
-        host        = v
-    end
-end
-
-unless first_name && last_name && host
-    puts 'ruby name_co_to_email.rb -f <first_name> -l <last_name> -h <host/domain.com>'
-    puts "( -f, -l and -h are all required)"
-    exit
-end
-
-
-
 require 'CSV'
 require 'email_verifier'
+require_relative 'lookup'
 
-components = {
-    'fi' => (first_name[0]  if first_name),
-    'fn' => (first_name     if first_name),
-    'li' => (last_name[0]   if last_name),
-    'ln' => (last_name      if last_name),
-    'lis'=> (last_name[0..1] if last_name),
-    'mi' => (middle_name[0] if middle_name),
-    'mn' => (middle_name    if middle_name)
-}
+first_name  = nil
+last_name   = nil
+middle_name = nil
+host        = nil
 
-guess_templates = CSV.read('./guess_templates.csv').map{|row| row.first}
+class MyLogger
+  def initialize(buffer=$stdout)
+    @buffer = buffer
+  end
 
-guesses = []
-emails  = []
-
-guess_templates.each do |t|
-    reqs = t.scan(/\{([a-z]+)\}/i).to_a.map{|r| r.first }
-
-    next if reqs.any? {|r| components[r].nil? }
-
-    guess = t.dup
-    reqs.each {|r| guess.gsub! "\{#{r}\}", components[r] }
-    guesses << guess
+  def <<(item)
+    @buffer << item+"\n"
+  end
 end
 
-puts "Checking Guesses: \n\n"
+if ENV['PORT']
+  puts "STARTING SERVER"
 
-guesses.each do |user|
-    begin
-        email = "#{user.chomp}@#{host.chomp}"
-        EmailVerifier.config do |config| config.verifier_email = email end
-        result = EmailVerifier.check email
-        puts "#{email} is valid!"   if result
-        emails << email             if result
-    rescue StandardError => e
-        puts e.inspect
+  require 'sinatra'
+  helpers { include Lookup }
+
+  get '/discover' do
+    stream do |out|
+      wrapped_out = MyLogger.new(out)
+      wrapped_out << '<pre>'
+
+      first_name = params[:f]
+      last_name  = params[:l]
+      middle_name = params[:m]
+      host        = params[:d]
+
+      res = lookup_by_name f: first_name, m: middle_name, l: last_name, d: host, out: wrapped_out
     end
-end
+  end
+else
+  puts "RUNNING INLINE"
 
-puts "\nFound #{emails.length} possible!", emails
+  include Lookup
+
+  ARGV.each_with_index do |k, i|
+      v = ARGV[i+1]
+      case k
+      when '-f'
+          first_name  = v
+      when '-l'
+          last_name   = v
+      when '-m'
+          middle_name = v
+      when '-d'
+          host        = v
+      end
+  end
+
+  mylogger = MyLogger.new
+
+  lookup_by_name f: first_name, m: middle_name, l: last_name, d: host, out: mylogger
+end
