@@ -1,6 +1,6 @@
 puts "Loading...\n\n"
 
-require 'CSV'
+require 'csv'
 require 'email_verifier'
 require_relative 'lookup'
 
